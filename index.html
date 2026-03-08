@@ -1,0 +1,279 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Five Nights at Freddy's Egg Timer</title>
+<link rel="stylesheet" href="index.css"/>
+</head>
+<body>
+
+<div class="static-bg"></div>
+
+<!-- Lurking eyes -->
+<div class="eyes" id="eye1">👀</div>
+<div class="eyes" id="eye2">👁️</div>
+
+<!-- Completion overlay -->
+<div class="overlay" id="overlay">
+  <div class="overlay-emoji" id="overlayEmoji">🍳</div>
+  <div class="overlay-title">IT'S READY</div>
+  <div class="overlay-msg" id="overlayMsg">Your egg is done. He is watching you eat it.</div>
+  <button class="overlay-close" onclick="closeOverlay()">▶ ACKNOWLEDGE</button>
+</div>
+
+<div class="container">
+  <h1>🍳 FREDDY'S KITCHEN 🍳</h1>
+  <p class="subtitle">Egg Timing System v1.0 — Night Shift</p>
+
+  <!-- Security monitor -->
+  <div class="monitor">
+    <span class="monitor-label">CAM 04 — KITCHEN</span>
+    <div class="cam-indicator"></div>
+
+    <!-- Animatronic -->
+    <div class="animatronic" id="animatronic">🐻</div>
+
+    <!-- Timer -->
+    <div class="timer-display" id="timerDisplay">00:00</div>
+
+    <!-- Progress -->
+    <div class="progress-track" style="margin-top:12px">
+      <div class="progress-fill" id="progressFill" style="width:0%"></div>
+    </div>
+
+    <p class="status-msg" id="statusMsg">SELECT AN EGG TO BEGIN</p>
+  </div>
+
+  <!-- Egg selection -->
+  <div class="egg-grid" id="eggGrid">
+    <button class="egg-btn" onclick="selectEgg(this, 'Soft Boiled', 180, '🥚', 'Runny yolk, set whites', 'Bonnie approves')">
+      <span class="egg-icon">🥚</span>
+      <span class="egg-name">SOFT BOILED</span>
+      <span class="egg-time">3:00</span>
+      <span class="egg-desc">Runny yolk — Bonnie approves</span>
+    </button>
+    <button class="egg-btn" onclick="selectEgg(this, 'Medium Soft', 240, '🥚', 'Jammy yolk', 'Chica\'s favorite')">
+      <span class="egg-icon">🥚</span>
+      <span class="egg-name">MEDIUM SOFT</span>
+      <span class="egg-time">4:00</span>
+      <span class="egg-desc">Jammy yolk — Chica's fave</span>
+    </button>
+    <button class="egg-btn" onclick="selectEgg(this, 'Medium', 300, '🍳', 'Slightly jammy', 'Foxy runs for it')">
+      <span class="egg-icon">🍳</span>
+      <span class="egg-name">MEDIUM</span>
+      <span class="egg-time">5:00</span>
+      <span class="egg-desc">Slightly jammy — Foxy's pick</span>
+    </button>
+    <button class="egg-btn" onclick="selectEgg(this, 'Medium Hard', 360, '🍳', 'Mostly set yolk', 'Freddy nods')">
+      <span class="egg-icon">🍳</span>
+      <span class="egg-name">MEDIUM HARD</span>
+      <span class="egg-time">6:00</span>
+      <span class="egg-desc">Mostly set — Freddy nods</span>
+    </button>
+    <button class="egg-btn" onclick="selectEgg(this, 'Hard Boiled', 480, '🫕', 'Fully set yolk', 'Golden Freddy stares')">
+      <span class="egg-icon">🫕</span>
+      <span class="egg-name">HARD BOILED</span>
+      <span class="egg-time">8:00</span>
+      <span class="egg-desc">Fully set — Golden Freddy</span>
+    </button>
+    <button class="egg-btn" onclick="selectEgg(this, 'Extra Hard', 600, '💀', 'Chalky yolk', 'The nightmare option')">
+      <span class="egg-icon">💀</span>
+      <span class="egg-name">EXTRA HARD</span>
+      <span class="egg-time">10:00</span>
+      <span class="egg-desc">Chalky yolk — nightmare mode</span>
+    </button>
+  </div>
+
+  <!-- Controls -->
+  <div class="controls">
+    <button class="ctrl-btn green" id="startBtn" onclick="startTimer()" disabled>▶ START</button>
+    <button class="ctrl-btn" id="pauseBtn" onclick="pauseTimer()" disabled>⏸ PAUSE</button>
+    <button class="ctrl-btn" id="resetBtn" onclick="resetTimer()" disabled>↺ RESET</button>
+  </div>
+
+  <p class="lore">
+    "THE KITCHEN IS OFF LIMITS AFTER MIDNIGHT.<br>
+    WE LOST THE FOOTAGE. WE DON'T KNOW WHY.<br>
+    PLEASE ENJOY YOUR EGG."
+  </p>
+</div>
+
+<script>
+  const animatronics = {
+    idle:     ['🐻','🐰','🐤','🦊','🎩'],
+    warning:  ['😈','💀','👻','🎃','😱'],
+    done:     ['😤','🤖','👾','💀','🐻']
+  };
+
+  const doneMessages = [
+    "Your egg is ready. He has been watching the whole time.",
+    "Cooking complete. Do not look at the door.",
+    "The egg is done. Something is in the hallway.",
+    "Timer ended. Freddy's music box is winding down...",
+    "Your breakfast is served. Please don't check the cameras.",
+    "Cooking finished. The power is at 4%.",
+  ];
+
+  let totalTime = 0;
+  let timeLeft = 0;
+  let interval = null;
+  let isRunning = false;
+  let selectedEggName = '';
+
+  function selectEgg(btn, name, secs, icon, desc, lore) {
+    if (isRunning) return;
+    document.querySelectorAll('.egg-btn').forEach(b => b.classList.remove('selected'));
+    btn.classList.add('selected');
+    totalTime = secs;
+    timeLeft = secs;
+    selectedEggName = name;
+    updateDisplay();
+    document.getElementById('progressFill').style.width = '0%';
+    document.getElementById('startBtn').disabled = false;
+    document.getElementById('resetBtn').disabled = false;
+    document.getElementById('pauseBtn').disabled = true;
+    setStatus('AWAITING ACTIVATION — ' + name.toUpperCase());
+    setAnimatronic('idle');
+    document.getElementById('timerDisplay').className = 'timer-display';
+  }
+
+  function updateDisplay() {
+    const m = String(Math.floor(timeLeft / 60)).padStart(2, '0');
+    const s = String(timeLeft % 60).padStart(2, '0');
+    document.getElementById('timerDisplay').textContent = m + ':' + s;
+  }
+
+  function setAnimatronic(state) {
+    const list = animatronics[state];
+    const el = document.getElementById('animatronic');
+    el.textContent = list[Math.floor(Math.random() * list.length)];
+  }
+
+  function setStatus(msg) {
+    document.getElementById('statusMsg').textContent = msg;
+  }
+
+  function startTimer() {
+    if (timeLeft <= 0) return;
+    isRunning = true;
+    document.getElementById('startBtn').disabled = true;
+    document.getElementById('pauseBtn').disabled = false;
+    document.getElementById('resetBtn').disabled = false;
+    setStatus('NIGHT SHIFT IN PROGRESS...');
+    setAnimatronic('idle');
+
+    interval = setInterval(() => {
+      timeLeft--;
+      updateDisplay();
+
+      const pct = ((totalTime - timeLeft) / totalTime) * 100;
+      document.getElementById('progressFill').style.width = pct + '%';
+
+      // Change animatronic every 20s
+      if (timeLeft % 20 === 0) setAnimatronic('idle');
+
+      // Warning phase — last 30s
+      if (timeLeft <= 30 && timeLeft > 0) {
+        document.getElementById('timerDisplay').className = 'timer-display warning';
+        setStatus('⚠ WARNING — HE IS CLOSE ⚠');
+        setAnimatronic('warning');
+        showEyes(true);
+      }
+
+      if (timeLeft <= 0) {
+        clearInterval(interval);
+        isRunning = false;
+        timerDone();
+      }
+    }, 1000);
+  }
+
+  function pauseTimer() {
+    if (!isRunning) {
+      // Resume
+      isRunning = true;
+      document.getElementById('pauseBtn').textContent = '⏸ PAUSE';
+      document.getElementById('startBtn').disabled = true;
+      setStatus('RESUMING...');
+      startTimer();
+    } else {
+      clearInterval(interval);
+      isRunning = false;
+      document.getElementById('pauseBtn').textContent = '▶ RESUME';
+      document.getElementById('startBtn').disabled = true;
+      setStatus('PAUSED — HOLD YOUR BREATH');
+    }
+  }
+
+  function resetTimer() {
+    clearInterval(interval);
+    isRunning = false;
+    timeLeft = totalTime;
+    updateDisplay();
+    document.getElementById('progressFill').style.width = '0%';
+    document.getElementById('timerDisplay').className = 'timer-display';
+    document.getElementById('startBtn').disabled = totalTime === 0;
+    document.getElementById('pauseBtn').disabled = true;
+    document.getElementById('pauseBtn').textContent = '⏸ PAUSE';
+    document.getElementById('resetBtn').disabled = totalTime === 0;
+    setStatus(totalTime ? 'RESET — ' + selectedEggName.toUpperCase() : 'SELECT AN EGG TO BEGIN');
+    setAnimatronic('idle');
+    showEyes(false);
+  }
+
+  function timerDone() {
+    document.getElementById('timerDisplay').className = 'timer-display done';
+    document.getElementById('timerDisplay').textContent = 'DONE!';
+    document.getElementById('pauseBtn').disabled = true;
+    setStatus('🎉 EGG COMPLETE 🎉');
+    setAnimatronic('done');
+    showEyes(false);
+
+    // Jumpscare animatronic
+    const el = document.getElementById('animatronic');
+    el.classList.add('jumpscare');
+    setTimeout(() => el.classList.remove('jumpscare'), 600);
+
+    // Show overlay
+    const msg = doneMessages[Math.floor(Math.random() * doneMessages.length)];
+    document.getElementById('overlayMsg').textContent = msg;
+    const icons = ['🐻','🐰','🐤','🦊','💀','👻'];
+    document.getElementById('overlayEmoji').textContent = icons[Math.floor(Math.random() * icons.length)];
+    setTimeout(() => document.getElementById('overlay').classList.add('show'), 300);
+
+    // Browser notification
+    if (Notification.permission === 'granted') {
+      new Notification("🍳 FREDDY'S KITCHEN", { body: "Your " + selectedEggName + " egg is ready!", icon: '' });
+    }
+  }
+
+  function closeOverlay() {
+    document.getElementById('overlay').classList.remove('show');
+    document.getElementById('resetBtn').disabled = false;
+  }
+
+  function showEyes(visible) {
+    document.getElementById('eye1').classList.toggle('visible', visible);
+    document.getElementById('eye2').classList.toggle('visible', visible);
+  }
+
+  // Randomly show eyes when idle
+  setInterval(() => {
+    if (!isRunning || timeLeft > 30) {
+      const show = Math.random() < 0.15;
+      showEyes(show);
+      if (show) setTimeout(() => showEyes(false), 3000);
+    }
+  }, 8000);
+
+  // Request notification permission
+  if ('Notification' in window && Notification.permission === 'default') {
+    Notification.requestPermission();
+  }
+
+  // Init display
+  updateDisplay();
+</script>
+</body>
+</html>
